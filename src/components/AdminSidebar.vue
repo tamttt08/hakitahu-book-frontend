@@ -6,7 +6,7 @@
                 <BookOpen class="w-6 h-6" />
             </div>
             <div>
-                <h1 class="text-xl font-black tracking-tight text-[#ec5b13]">BookO Admin</h1>
+                <h1 class="text-xl font-black tracking-tight text-[#ec5b13]">HAKITAHU BOOK ADMIN</h1>
                 <p class="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Hệ thống quản trị</p>
             </div>
         </div>
