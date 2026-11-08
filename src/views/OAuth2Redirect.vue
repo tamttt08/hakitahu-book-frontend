@@ -7,33 +7,47 @@
 
 <script setup>
 import { onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 
 const route = useRoute();
+const router = useRouter();
 
 onMounted(async () => {
   const token = route.query.token;
 
   if (token) {
-    // 1. Lưu token để dùng làm chìa khóa gọi API
+    // 1. Lưu token vào localStorage
     localStorage.setItem('token', token);
     
     try {
-      // 2. Gọi API lấy dữ liệu thật từ Database thay vì tự dịch JWT
+      // 2. Gọi API lấy dữ liệu user thật từ Database
       const res = await axios.get('http://localhost:8081/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // 3. Lưu toàn bộ dữ liệu chuẩn vào bộ nhớ và chuyển hướng
-      localStorage.setItem('user', JSON.stringify(res.data));
-      window.location.href = '/';
+      const userData = res.data;
+      
+      // 3. Lưu toàn bộ dữ liệu user vào localStorage
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      // 4. Kiểm tra Role để phân luồng điều hướng
+      const userRole = (userData.role || 'user').toLowerCase();
+
+      if (userRole === 'admin' || userRole === 'role_admin') {
+        router.push('/admin/products');
+      } else if (userRole === 'shipper' || userRole === 'role_shipper') {
+        router.push('/shipper');
+      } else {
+        router.push('/');
+      }
+
     } catch (error) {
       console.error("Lỗi đồng bộ dữ liệu:", error);
-      window.location.href = '/login';
+      router.push('/login');
     }
   } else {
-    window.location.href = '/login';
+    router.push('/login');
   }
 });
 </script>

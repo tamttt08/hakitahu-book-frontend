@@ -83,12 +83,13 @@ const handleSubmit = async () => {
         // Đưa về chữ thường (toLowerCase) để so sánh không bị lỗi hoa/thường
         const userRole = (user.role || 'user').toLowerCase(); 
 
-        if (userRole === 'admin') {
-            window.location.href = '/admin';
-        } else if (userRole === 'shipper') {
-            window.location.href = '/shipper';
+        // Sử dụng router.push thay vì window.location.href để chuyển trang mượt mà
+        if (userRole === 'admin' || userRole === 'role_admin') {
+            router.push('/admin/categories'); 
+        } else if (userRole === 'shipper' || userRole === 'role_shipper') {
+            router.push('/shipper'); // Tùy chỉnh đường dẫn này theo route của cậu
         } else {
-            window.location.href = '/'; // Khách hàng bình thường về Trang chủ BookO
+            router.push('/'); // Khách hàng bình thường về Trang chủ HAKITAHU BOOK
         }
         
     } catch (err) {
