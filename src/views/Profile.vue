@@ -59,17 +59,15 @@
               <div>
                 <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Mật khẩu</h3>
                 <div class="flex items-center gap-3">
-                  <p class="text-lg font-medium text-slate-900">
-                    {{ showProfilePassword ? '123456' : '••••••••' }}
+                  <!-- Chữ số được thay thế bằng các dấu chấm tĩnh, thêm tracking để giãn cách hạt -->
+                  <p class="text-lg font-medium text-slate-900 tracking-[0.2em] mt-1">
+                    ••••••••
                   </p>
-                  <button @click="showProfilePassword = !showProfilePassword"
-                    class="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
-                    <EyeOff v-if="showProfilePassword" class="w-4 h-4" />
-                    <Eye v-else class="w-4 h-4" />
-                  </button>
                 </div>
               </div>
             </div>
+
+            <!-- Nút bấm mở Modal đổi mật khẩu vẫn giữ nguyên -->
             <button @click="showChangePasswordForm = true"
               class="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-[#308ce8] bg-[#308ce8]/5 hover:bg-[#308ce8]/10 rounded-lg transition-colors">
               Thay đổi
@@ -178,7 +176,7 @@
             <label class="text-sm font-bold text-slate-700">Mật khẩu cũ</label>
             <div class="relative">
               <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input type="password" required placeholder="Nhập mật khẩu hiện tại"
+              <input v-model="passwordForm.oldPassword" type="password" required placeholder="Nhập mật khẩu hiện tại"
                 class="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#308ce8] outline-none transition-all" />
             </div>
           </div>
@@ -186,7 +184,7 @@
             <label class="text-sm font-bold text-slate-700">Mật khẩu mới</label>
             <div class="relative">
               <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input type="password" required placeholder="Nhập mật khẩu mới"
+              <input v-model="passwordForm.newPassword" type="password" required placeholder="Nhập mật khẩu mới"
                 class="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#308ce8] outline-none transition-all" />
             </div>
           </div>
@@ -194,7 +192,7 @@
             <label class="text-sm font-bold text-slate-700">Xác nhận mật khẩu mới</label>
             <div class="relative">
               <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input type="password" required placeholder="Nhập lại mật khẩu mới"
+              <input v-model="passwordForm.confirmPassword" type="password" required placeholder="Nhập lại mật khẩu mới"
                 class="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#308ce8] outline-none transition-all" />
             </div>
           </div>
@@ -212,8 +210,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
+import axios from 'axios';
 import { ChevronRight, User, IdCard, Lock, Eye, EyeOff, Mail, Phone, MapPin, LogOut, XCircle, ShieldCheck, Truck, Headphones } from 'lucide-vue-next';
 import { AuthService } from '../services/auth.service';
 
@@ -223,9 +222,45 @@ const showChangePasswordForm = ref(false);
 
 const currentUser = ref(JSON.parse(localStorage.getItem('user')) || {});
 
-const submitChangePassword = () => {
-  alert('Mật khẩu đã được thay đổi thành công!');
-  showChangePasswordForm.value = false;
+// 1. Tạo biến hứng dữ liệu từ 3 ô input
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+});
+
+// 2. Viết lại hàm xử lý kết nối Backend
+const submitChangePassword = async () => {
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    alert('Mật khẩu xác nhận không khớp!');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('token');
+
+    // Gọi API xuống Spring Boot
+    await axios.post('http://localhost:8081/api/auth/change-password',
+      {
+        oldPassword: passwordForm.oldPassword,
+        newPassword: passwordForm.newPassword
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    // Xử lý khi thành công
+    alert('Mật khẩu đã được thay đổi thành công!');
+    showChangePasswordForm.value = false;
+
+    // Xóa trắng form để chuẩn bị cho lần mở sau
+    passwordForm.oldPassword = '';
+    passwordForm.newPassword = '';
+    passwordForm.confirmPassword = '';
+
+  } catch (err) {
+    // Backend ném lỗi (nhập sai pass cũ) sẽ văng vào đây
+    alert(err.response?.data || 'Lỗi khi đổi mật khẩu!');
+  }
 };
 
 const handleLogout = () => {
