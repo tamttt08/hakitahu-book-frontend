@@ -4,7 +4,7 @@
       <div class="flex items-center justify-between h-20 gap-8">
         <!-- Logo -->
         <router-link to="/" class="flex items-center gap-2 shrink-0">
-          <span class="text-2xl font-extrabold tracking-tighter text-[#308ce8]">BookO</span>
+          <span class="text-2xl font-extrabold tracking-tighter text-[#308ce8]">HAKITAHU BOOK</span>
         </router-link>
 
         <!-- Search Bar -->

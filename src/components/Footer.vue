@@ -7,10 +7,10 @@
             <div class="w-8 h-8 bg-[#308ce8] rounded flex items-center justify-center text-white">
               <BookOpen class="w-5 h-5" />
             </div>
-            <span class="text-xl font-bold tracking-tight text-[#308ce8]">Booky</span>
+            <span class="text-xl font-bold tracking-tight text-[#308ce8]">HAKITAHU BOOK</span>
           </div>
           <p class="text-sm text-slate-500 leading-relaxed">
-            Booky là nền tảng bán sách trực tuyến hàng đầu Việt Nam, mang tri thức đến mọi nhà với dịch vụ nhanh chóng
+            HAKITAHU BOOK là nền tảng bán sách trực tuyến hàng đầu Việt Nam, mang tri thức đến mọi nhà với dịch vụ nhanh chóng
             và tận tâm.
           </p>
           <div class="flex items-center gap-4">
@@ -50,7 +50,7 @@
       </div>
 
       <div class="border-t border-slate-100 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-        <p class="text-xs text-slate-400">© 2024 Booky JSC. Bảo lưu mọi quyền.</p>
+        <p class="text-xs text-slate-400">© 2024 HAKITAHU BOOK. Bảo lưu mọi quyền.</p>
       </div>
     </div>
   </footer>
