@@ -12,7 +12,7 @@
           <h1 class="text-4xl lg:text-5xl font-bold mb-4 leading-tight">Hội sách Online<br />Giảm đến 50%</h1>
           <p class="text-lg text-slate-200 mb-8 max-w-md">Khám phá hàng ngàn tựa sách từ văn học, kinh tế đến kỹ năng
             sống với mức giá ưu đãi nhất.</p>
-          <button
+          <button @click="router.push('/categories')"
             class="bg-[#308ce8] hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-xl w-fit transition-transform hover:scale-105">
             Mua ngay
           </button>
@@ -42,7 +42,7 @@
       </div>
     </section>
 
-    <!-- Flash Sale Section -->
+    <!-- Flash Sale / Sách Nổi Bật Section -->
     <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <div class="flex items-center gap-4">
@@ -60,23 +60,40 @@
               }}</span>
           </div>
         </div>
-        <router-link to="/promotions"
+        <router-link to="/categories"
           class="text-[#308ce8] font-semibold text-sm hover:underline flex items-center gap-1">
           Xem tất cả
           <ChevronRight class="w-4 h-4" />
         </router-link>
       </div>
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-        <div v-for="book in FEATURED_BOOKS" :key="book.id"
+
+      <!-- Loading hoặc Trống -->
+      <div v-if="isLoading" class="py-12 text-center text-slate-400">Đang tải dữ liệu sách...</div>
+      <div v-else-if="featuredBooks.length === 0" class="py-12 text-center text-slate-400">
+        Chưa có sách nào trong hệ thống.
+      </div>
+
+      <!-- Danh sách Sách Nổi Bật từ Database -->
+      <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+        <div v-for="book in featuredBooks" :key="book.bookId" @click="goToDetail(book.bookId)"
           class="group cursor-pointer transform hover:-translate-y-1 transition-transform duration-300">
           <div
             class="relative aspect-[2/3] rounded-xl overflow-hidden bg-slate-100 mb-4 border border-slate-100 group-hover:shadow-xl transition-shadow">
-            <img :src="book.image" :alt="book.title"
+            <img :src="book.image || 'https://placehold.co/300x450?text=No+Image'" :alt="book.title"
               class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
               referrerpolicy="no-referrer" />
-            <div class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg">{{
-              book.discount }}</div>
-            <div
+            
+            <!-- Tag Danh mục góc trên -->
+            <div v-if="book.category" class="absolute top-2 left-2 bg-[#308ce8] text-white text-[10px] font-bold px-2 py-1 rounded-lg">
+              {{ book.category.categoryName }}
+            </div>
+
+            <!-- Nhãn hết hàng nếu quantity <= 0 -->
+            <div v-if="book.quantity <= 0" class="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <span class="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-lg uppercase">Hết hàng</span>
+            </div>
+
+            <div v-else
               class="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform bg-gradient-to-t from-black/80 to-transparent">
               <button @click.stop="addToCart(book)"
                 class="w-full bg-[#308ce8] text-white py-2 rounded-lg text-xs font-bold hover:bg-blue-600">
@@ -89,7 +106,6 @@
           <p class="text-xs text-slate-500 mb-2">{{ book.author }}</p>
           <div class="flex items-center gap-2 mb-2">
             <span class="text-[#308ce8] font-bold">{{ formatPrice(book.price) }}</span>
-            <span class="text-xs text-slate-400 line-through">{{ formatPrice(book.oldPrice) }}</span>
           </div>
         </div>
       </div>
@@ -108,11 +124,16 @@
           </button>
         </div>
       </div>
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <div v-for="book in BEST_SELLERS" :key="book.id"
+
+      <div v-if="bestSellers.length === 0" class="py-8 text-center text-slate-400 bg-white rounded-xl border border-slate-100">
+        Chưa có dữ liệu sách bán chạy.
+      </div>
+
+      <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div v-for="book in bestSellers" :key="book.bookId" @click="goToDetail(book.bookId)"
           class="bg-white p-3 rounded-xl border border-slate-100 hover:shadow-md transition-shadow cursor-pointer">
           <div class="aspect-[2/3] rounded-lg bg-slate-100 mb-3 overflow-hidden">
-            <img :src="book.image" :alt="book.title"
+            <img :src="book.image || 'https://placehold.co/300x450?text=No+Image'" :alt="book.title"
               class="w-full h-full object-cover hover:scale-105 transition-transform" referrerpolicy="no-referrer" />
           </div>
           <h4 class="text-xs font-bold mb-1 line-clamp-2 h-8">{{ book.title }}</h4>
@@ -120,7 +141,7 @@
           <p class="text-sm font-bold text-[#308ce8]">{{ formatPrice(book.price) }}</p>
           <div class="mt-2 flex items-center gap-1">
             <Star class="w-3 h-3 text-yellow-400 fill-yellow-400" />
-            <span class="text-[10px] text-slate-500">{{ book.rating }} | Đã bán {{ book.sold }}</span>
+            <span class="text-[10px] text-slate-500">5.0 | Kho: {{ book.quantity }}</span>
           </div>
         </div>
       </div>
@@ -129,16 +150,55 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Bolt, ChevronRight, Star, ArrowLeft, ArrowRight, BookOpen, Award } from 'lucide-vue-next';
-import { FEATURED_BOOKS, BEST_SELLERS, formatPrice } from '../data/mockData';
+import { BookService } from '../services/book.service';
 
 const router = useRouter();
+const books = ref([]);
+const isLoading = ref(true);
+
 const timeLeft = ref({ hours: 2, minutes: 45, seconds: 12 });
 let timer;
 
+// Lấy danh sách sách thật từ Database
+const fetchBooks = async () => {
+  isLoading.value = true;
+  try {
+    const res = await BookService.getAllBooks();
+    // Chỉ hiển thị những cuốn sách đang mở bán (status === true)
+    books.value = (res.data || []).filter(b => b.status === true);
+  } catch (error) {
+    console.error('Lỗi khi tải sách ngoài trang chủ:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Sách nổi bật: Lấy 5 cuốn mới nhất (sắp xếp theo bookId giảm dần)
+const featuredBooks = computed(() => {
+  return [...books.value].sort((a, b) => b.bookId - a.bookId).slice(0, 5);
+});
+
+// Sách bán chạy: Lấy 6 cuốn đầu tiên trong danh sách
+const bestSellers = computed(() => {
+  return books.value.slice(0, 6);
+});
+
+// Hàm định dạng tiền tệ VNĐ
+const formatPrice = (price) => {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
+};
+
+// Chuyển sang trang chi tiết sản phẩm khi bấm vào sách
+const goToDetail = (bookId) => {
+  router.push(`/product/${bookId}`);
+};
+
 onMounted(() => {
+  fetchBooks();
+
   timer = setInterval(() => {
     if (timeLeft.value.seconds > 0) {
       timeLeft.value.seconds--;
