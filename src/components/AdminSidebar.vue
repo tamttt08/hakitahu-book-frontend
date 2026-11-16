@@ -31,7 +31,7 @@
             <router-link to="/admin/users" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
                 active-class="bg-[#ec5b13]/10 text-[#ec5b13] border border-[#ec5b13]/20 font-bold"
                 :class="route.path === '/admin/users' ? '' : 'text-slate-600 hover:bg-slate-100 font-semibold'">
-                <Users class="w-5 h-5" /> Khách hàng
+                <Users class="w-5 h-5" /> Người dùng
             </router-link>
 
             <div class="pt-4 pb-2">
