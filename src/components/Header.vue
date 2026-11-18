@@ -102,24 +102,26 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { Search, ShoppingCart, UserCircle, User, LayoutDashboard } from 'lucide-vue-next';
 
 const router = useRouter();
+const route = useRoute();
+
 const searchQuery = ref('');
 const isLoggedIn = ref(false);
 const currentUser = ref(null);
 const cartItemsCount = ref(0);
 
-// Kiểm tra quyền Admin an toàn (xử lý cả chữ hoa và chữ thường)
+// Kiểm tra quyền Admin an toàn
 const isAdmin = computed(() => {
   const role = (currentUser.value?.role || '').toLowerCase();
   return role === 'admin' || role === 'role_admin';
 });
 
-// Kiểm tra localStorage ngay khi Header xuất hiện
-onMounted(() => {
+// Hàm đồng bộ trạng thái đăng nhập từ localStorage
+const checkAuthStatus = () => {
   const token = localStorage.getItem('token');
   const userData = localStorage.getItem('user');
   
@@ -129,9 +131,27 @@ onMounted(() => {
       currentUser.value = JSON.parse(userData);
     } catch (e) {
       console.error('Lỗi đọc dữ liệu người dùng:', e);
+      isLoggedIn.value = false;
+      currentUser.value = null;
     }
+  } else {
+    isLoggedIn.value = false;
+    currentUser.value = null;
   }
+};
+
+// 1. Kiểm tra ngay khi Header vừa xuất hiện lần đầu
+onMounted(() => {
+  checkAuthStatus();
 });
+
+// 2. Tự động kiểm tra lại mỗi khi chuyển trang (VD: từ /login đẩy về /)
+watch(
+  () => route.fullPath,
+  () => {
+    checkAuthStatus();
+  }
+);
 
 const handleSearch = () => {
   if (searchQuery.value.trim()) {
@@ -143,9 +163,7 @@ const handleLogout = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
   
-  isLoggedIn.value = false;
-  currentUser.value = null;
-  
-  window.location.href = '/login';
+  checkAuthStatus();
+  router.push('/login');
 };
 </script>
