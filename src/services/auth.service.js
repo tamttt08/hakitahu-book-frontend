@@ -17,6 +17,10 @@ export const AuthService = {
         const response = await api.get(`/auth/verify?token=${token}`);
         return response.data;
     },
+    async resendVerification(email) {
+        const response = await api.post('/auth/resend-verification', { email });
+        return response.data;
+    },
     logout() {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
