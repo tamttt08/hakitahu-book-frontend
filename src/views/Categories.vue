@@ -109,11 +109,27 @@
             @click="goToDetail(book.bookId)"
             class="group bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col">
             
-            <!-- Ảnh bìa -->
+            <!-- Ảnh bìa + Badge giảm giá -->
             <div class="relative aspect-[3/4] bg-slate-100 overflow-hidden">
               <img :src="book.image || 'https://placehold.co/300x400?text=No+Image'" :alt="book.title"
                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 referrerpolicy="no-referrer" />
+
+              <!-- Nhãn % giảm giá -->
+              <span
+                v-if="book.hasDiscount"
+                class="absolute top-3 right-3 bg-rose-600 text-white text-xs font-black px-2.5 py-1 rounded-md shadow-md"
+              >
+                -{{ book.discountPercent }}%
+              </span>
+
+              <!-- Nhãn tên chương trình sale -->
+              <span
+                v-if="book.hasDiscount && book.promotionName"
+                class="absolute bottom-2.5 left-2.5 right-2.5 bg-slate-900/75 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-lg truncate"
+              >
+                {{ book.promotionName }}
+              </span>
               
               <!-- Nhãn hết hàng -->
               <div v-if="book.quantity <= 0" class="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -133,14 +149,26 @@
                 <p class="text-xs text-slate-500 mt-1">{{ book.author }}</p>
               </div>
 
-              <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div class="pt-3 border-t border-slate-100 flex items-end justify-between gap-2">
                 <div>
-                  <span class="text-lg font-extrabold text-[#ec5b13]">{{ formatPrice(book.price) }}</span>
-                  <p class="text-[11px] text-slate-400">Kho: {{ book.quantity }}</p>
+                  <template v-if="book.hasDiscount">
+                    <span class="block text-xs text-slate-400 line-through">
+                      {{ formatPrice(book.originalPrice) }}
+                    </span>
+                    <span class="text-lg font-extrabold text-rose-600 leading-tight">
+                      {{ formatPrice(book.salePrice) }}
+                    </span>
+                  </template>
+                  <template v-else>
+                    <span class="text-lg font-extrabold text-[#ec5b13]">
+                      {{ formatPrice(book.price) }}
+                    </span>
+                  </template>
+                  <p class="text-[11px] text-slate-400 mt-0.5">Kho: {{ book.quantity }}</p>
                 </div>
 
                 <button @click.stop="addToCart(book)" :disabled="book.quantity <= 0"
-                  class="p-2.5 rounded-xl bg-[#308ce8]/10 text-[#308ce8] hover:bg-[#308ce8] hover:text-white disabled:opacity-40 disabled:pointer-events-none transition-colors">
+                  class="p-2.5 rounded-xl bg-[#308ce8]/10 text-[#308ce8] hover:bg-[#308ce8] hover:text-white disabled:opacity-40 disabled:pointer-events-none transition-colors shrink-0">
                   <ShoppingCart class="w-5 h-5" />
                 </button>
               </div>
@@ -158,6 +186,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { ChevronRight, LayoutGrid, Book, ShoppingCart } from 'lucide-vue-next';
 import { BookService } from '../services/book.service';
 import { CategoryService } from '../services/category.service';
+import { PromotionService } from '../services/promotion.service';
+import { applyPromotionsToBooks } from '../utils/promotion';
 
 const route = useRoute();
 const router = useRouter();
@@ -172,17 +202,21 @@ const maxPrice = ref(1000000);
 const sortBy = ref('newest');
 const searchKeyword = ref('');
 
-// Tải dữ liệu thật từ Database
+// Tải dữ liệu thật từ Database (kèm khuyến mãi đang hoạt động)
 const fetchCategoriesAndBooks = async () => {
   isLoading.value = true;
   try {
-    const [booksRes, categoriesRes] = await Promise.all([
+    const [booksRes, categoriesRes, promoRes] = await Promise.all([
       BookService.getAllBooks(),
-      CategoryService.getAllCategories()
+      CategoryService.getAllCategories(),
+      PromotionService.getActivePromotions().catch(() => ({ data: [] }))
     ]);
 
     // Chỉ lấy sách và danh mục đang hoạt động (status === true)
-    books.value = (booksRes.data || []).filter(b => b.status === true);
+    const activeBooks = (booksRes.data || []).filter(b => b.status === true);
+    const activePromos = Array.isArray(promoRes.data) ? promoRes.data : [];
+
+    books.value = applyPromotionsToBooks(activeBooks, activePromos);
     categories.value = (categoriesRes.data || []).filter(c => c.status === true);
   } catch (error) {
     console.error('Lỗi khi tải dữ liệu trang danh mục:', error);
@@ -220,29 +254,30 @@ const currentCategoryName = computed(() => {
   return found ? found.categoryName : 'Tất cả sách';
 });
 
-// Danh sách sách sau khi Lọc (Thể loại + Giá + Từ khóa) và Sắp xếp
+// Danh sách sách sau khi Lọc (Thể loại + Giá sau giảm + Từ khóa) và Sắp xếp
 const filteredBooks = computed(() => {
   let result = books.value.filter(book => {
     // 1. Lọc theo danh mục
     const matchCategory = selectedCategoryId.value === null || book.category?.categoryId === selectedCategoryId.value;
-    // 2. Lọc theo giá
-    const matchPrice = (book.price || 0) <= maxPrice.value;
+    // 2. Lọc theo giá thực tế (ưu tiên giá sau giảm nếu đang sale)
+    const effectivePrice = book.salePrice ?? book.price ?? 0;
+    const matchPrice = effectivePrice <= maxPrice.value;
     // 3. Lọc theo từ khóa tìm kiếm trên Header
     const q = searchKeyword.value.toLowerCase();
-    const matchKeyword = !q || 
-      book.title?.toLowerCase().includes(q) || 
+    const matchKeyword = !q ||
+      book.title?.toLowerCase().includes(q) ||
       book.author?.toLowerCase().includes(q);
 
     return matchCategory && matchPrice && matchKeyword;
   });
 
-  // 4. Sắp xếp
+  // 4. Sắp xếp (so sánh giá theo salePrice)
   if (sortBy.value === 'newest') {
     result.sort((a, b) => b.bookId - a.bookId);
   } else if (sortBy.value === 'price-asc') {
-    result.sort((a, b) => a.price - b.price);
+    result.sort((a, b) => (a.salePrice ?? a.price ?? 0) - (b.salePrice ?? b.price ?? 0));
   } else if (sortBy.value === 'price-desc') {
-    result.sort((a, b) => b.price - a.price);
+    result.sort((a, b) => (b.salePrice ?? b.price ?? 0) - (a.salePrice ?? a.price ?? 0));
   } else if (sortBy.value === 'name-asc') {
     result.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
   }
@@ -267,10 +302,11 @@ const formatPrice = (price) => {
 };
 
 const goToDetail = (bookId) => {
-  router.push(`/product/${bookId}`);
+  router.push({ path: '/product-detail', query: { id: bookId } });
 };
 
 const addToCart = (book) => {
-  alert(`Đã thêm "${book.title}" vào giỏ hàng!`);
+  const finalPrice = book.hasDiscount ? book.salePrice : book.price;
+  alert(`Đã thêm "${book.title}" (${formatPrice(finalPrice)}) vào giỏ hàng!`);
 };
 </script>

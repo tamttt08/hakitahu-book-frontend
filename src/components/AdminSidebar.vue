@@ -33,6 +33,11 @@
                 :class="route.path === '/admin/users' ? '' : 'text-slate-600 hover:bg-slate-100 font-semibold'">
                 <Users class="w-5 h-5" /> Người dùng
             </router-link>
+            <router-link to="/admin/vouchers" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                active-class="bg-[#ec5b13]/10 text-[#ec5b13] border border-[#ec5b13]/20 font-bold"
+                :class="route.path === '/admin/vouchers' ? '' : 'text-slate-600 hover:bg-slate-100 font-semibold'">
+                <Ticket class="w-5 h-5" /> Khuyến mãi
+            </router-link>
 
             <div class="pt-4 pb-2">
                 <p class="px-4 text-[10px] uppercase tracking-widest text-slate-400 font-bold">Cài đặt</p>
@@ -52,7 +57,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-bold truncate">{{ currentUser?.fullName || 'Admin User' }}</p>
-                    <p class="text-[10px] text-slate-500 truncate font-medium">{{ currentUser?.email || 'admin@booko.vn'
+                    <p class="text-[10px] text-slate-500 truncate font-medium">{{ currentUser?.email || 'admin@hakitahubook.vn'
                         }}</p>
                 </div>
                 <button @click="handleLogout" class="text-slate-400 hover:text-red-500 transition-colors">
@@ -65,7 +70,7 @@
 
 <script setup>
 import { useRoute, useRouter } from 'vue-router';
-import { BookOpen, Book, LayoutGrid, ShoppingCart, Users, Settings, LogOut } from 'lucide-vue-next';
+import { BookOpen, Book, LayoutGrid, ShoppingCart, Users, Ticket, Settings, LogOut } from 'lucide-vue-next';
 import { AuthService } from '../services/auth.service';
 
 const route = useRoute();
