@@ -64,7 +64,7 @@
       </p>
     </div>
 
-    <!-- Trạng thái Loading (ĐÃ SỬA: 8 thẻ) -->
+    <!-- Trạng thái Loading (8 thẻ) -->
     <div v-if="isLoading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       <div v-for="n in 8" :key="n" class="bg-white rounded-2xl border border-slate-100 overflow-hidden animate-pulse">
         <div class="aspect-[3/4] bg-slate-200"></div>
@@ -96,7 +96,7 @@
         @click="goToDetail(book.bookId)"
         class="group bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col"
       >
-        <!-- Ảnh bìa + Badge MỚI -->
+        <!-- Ảnh bìa + Badge MỚI + Badge giảm giá -->
         <div class="relative aspect-[3/4] bg-slate-100 overflow-hidden">
           <img
             :src="book.image || 'https://placehold.co/300x400?text=HAKITAHU+BOOK'"
@@ -107,6 +107,22 @@
 
           <span class="absolute top-3 left-3 bg-[#308ce8] text-white text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm">
             MỚI
+          </span>
+
+          <!-- Badge % giảm giá nếu sách đang thuộc chương trình khuyến mãi -->
+          <span
+            v-if="book.hasDiscount"
+            class="absolute top-3 right-3 bg-rose-600 text-white text-xs font-black px-2.5 py-1 rounded-md shadow-md"
+          >
+            -{{ book.discountPercent }}%
+          </span>
+
+          <!-- Tag tên chương trình sale (nếu có) -->
+          <span
+            v-if="book.hasDiscount && book.promotionName"
+            class="absolute bottom-2.5 left-2.5 right-2.5 bg-slate-900/75 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-lg truncate"
+          >
+            {{ book.promotionName }}
           </span>
 
           <div v-if="book.quantity <= 0" class="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -130,17 +146,29 @@
             </p>
           </div>
 
-          <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+          <div class="pt-3 border-t border-slate-100 flex items-end justify-between gap-2">
             <div>
-              <span class="text-lg font-extrabold text-[#ec5b13]">{{ formatPrice(book.price) }}</span>
-              <p class="text-[11px] text-slate-400">Còn {{ book.quantity ?? 0 }} cuốn</p>
+              <template v-if="book.hasDiscount">
+                <span class="block text-xs text-slate-400 line-through">
+                  {{ formatPrice(book.originalPrice) }}
+                </span>
+                <span class="text-lg font-extrabold text-rose-600 leading-tight">
+                  {{ formatPrice(book.salePrice) }}
+                </span>
+              </template>
+              <template v-else>
+                <span class="text-lg font-extrabold text-[#ec5b13]">
+                  {{ formatPrice(book.price) }}
+                </span>
+              </template>
+              <p class="text-[11px] text-slate-400 mt-0.5">Còn {{ book.quantity ?? 0 }} cuốn</p>
             </div>
 
             <button
               @click.stop="addToCart(book)"
               :disabled="book.quantity <= 0"
               title="Thêm vào giỏ hàng"
-              class="p-2.5 rounded-xl bg-[#308ce8]/10 text-[#308ce8] hover:bg-[#308ce8] hover:text-white disabled:opacity-40 disabled:pointer-events-none transition-colors"
+              class="p-2.5 rounded-xl bg-[#308ce8]/10 text-[#308ce8] hover:bg-[#308ce8] hover:text-white disabled:opacity-40 disabled:pointer-events-none transition-colors shrink-0"
             >
               <ShoppingCart class="w-5 h-5" />
             </button>
@@ -149,7 +177,7 @@
       </div>
     </div>
 
-    <!-- Nút Xem thêm mỗi lần +8 sản phẩm (ĐÃ SỬA) -->
+    <!-- Nút Xem thêm mỗi lần +8 sản phẩm -->
     <div v-if="!isLoading && sortedBooks.length > visibleCount" class="text-center pt-4">
       <button
         @click="loadMore"
@@ -166,26 +194,27 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'; // ĐÃ SỬA: thêm watch
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ChevronDown, ArrowUp, ArrowDown, Star, ShoppingCart } from 'lucide-vue-next';
 import { BookService } from '../services/book.service';
+import { PromotionService } from '../services/promotion.service';
+import { applyPromotionsToBooks } from '../utils/promotion';
 
 const router = useRouter();
 
-const PAGE_SIZE = 8; // ĐÃ SỬA: mỗi lần hiện 8 sản phẩm
+const PAGE_SIZE = 8;
 
 const books = ref([]);
 const isLoading = ref(true);
 const errorMessage = ref('');
 const sortBy = ref('newest');
-const visibleCount = ref(PAGE_SIZE); // ĐÃ SỬA: mặc định 8 cuốn đầu
+const visibleCount = ref(PAGE_SIZE);
 
 const loadMore = () => {
   visibleCount.value += PAGE_SIZE;
 };
 
-// Đổi tab sắp xếp thì tự động quay lại hiển thị 8 cuốn đầu
 watch(sortBy, () => {
   visibleCount.value = PAGE_SIZE;
 });
@@ -194,10 +223,17 @@ const fetchNewArrivals = async () => {
   isLoading.value = true;
   errorMessage.value = '';
   try {
-    const res = await BookService.getAllBooks();
-    const rawBooks = Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
-    // Chỉ lấy các sách đang bán (status !== false)
-    books.value = rawBooks.filter(b => b.status !== false);
+    const [bookRes, promoRes] = await Promise.all([
+      BookService.getAllBooks(),
+      PromotionService.getActivePromotions().catch(() => ({ data: [] }))
+    ]);
+
+    const rawBooks = Array.isArray(bookRes.data) ? bookRes.data : (Array.isArray(bookRes) ? bookRes : []);
+    const activeBooks = rawBooks.filter((b) => b.status !== false);
+    const activePromos = Array.isArray(promoRes.data) ? promoRes.data : [];
+
+    // Gắn giá giảm từ chương trình khuyến mãi đang hoạt động vào từng cuốn sách
+    books.value = applyPromotionsToBooks(activeBooks, activePromos);
   } catch (error) {
     console.error('Lỗi khi tải danh sách sách mới:', error);
     errorMessage.value = 'Không thể tải danh sách sách mới từ máy chủ. Vui lòng thử lại!';
@@ -208,7 +244,6 @@ const fetchNewArrivals = async () => {
 
 onMounted(fetchNewArrivals);
 
-// Sắp xếp danh sách sách theo tab đang chọn
 const sortedBooks = computed(() => {
   const list = [...books.value];
 
@@ -220,11 +255,10 @@ const sortedBooks = computed(() => {
       return (b.bookId || 0) - (a.bookId || 0);
     });
   } else if (sortBy.value === 'price-asc') {
-    list.sort((a, b) => (a.price || 0) - (b.price || 0));
+    list.sort((a, b) => (a.salePrice ?? a.price ?? 0) - (b.salePrice ?? b.price ?? 0));
   } else if (sortBy.value === 'price-desc') {
-    list.sort((a, b) => (b.price || 0) - (a.price || 0));
+    list.sort((a, b) => (b.salePrice ?? b.price ?? 0) - (a.salePrice ?? a.price ?? 0));
   } else if (sortBy.value === 'bestseller') {
-    // Ưu tiên số lượng đã bán nếu DB có, nếu chưa có thì xếp tạm theo tồn kho thấp + mới nhất
     list.sort((a, b) => {
       const soldA = a.soldQuantity ?? a.sold ?? 0;
       const soldB = b.soldQuantity ?? b.sold ?? 0;
@@ -243,10 +277,11 @@ const formatPrice = (price) => {
 };
 
 const goToDetail = (bookId) => {
-  router.push(`/product/${bookId}`);
+  router.push({ path: '/product-detail', query: { id: bookId } });
 };
 
 const addToCart = (book) => {
-  alert(`Đã thêm "${book.title}" vào giỏ hàng!`);
+  const finalPrice = book.hasDiscount ? book.salePrice : book.price;
+  alert(`Đã thêm "${book.title}" (${formatPrice(finalPrice)}) vào giỏ hàng!`);
 };
 </script>

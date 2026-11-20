@@ -13,6 +13,7 @@ import AdminProducts from '../views/AdminProducts.vue';
 import AdminOrders from '../views/AdminOrders.vue';
 import AdminCategories from '../views/AdminCategories.vue';
 import AdminUsers from '../views/AdminUsers.vue';
+import AdminVouchers from '../views/AdminVouchers.vue';
 import NewArrivals from '../views/NewArrivals.vue';
 import Promotions from '../views/Promotions.vue';
 import AdminConfig from '../views/AdminConfig.vue';
@@ -52,6 +53,7 @@ const routes = [
     { path: '/admin/orders', component: AdminOrders, meta: { requiresAuth: true, requiredRole: 'admin' } },
     { path: '/admin/categories', component: AdminCategories, meta: { requiresAuth: true, requiredRole: 'admin' } },
     { path: '/admin/users', component: AdminUsers, meta: { requiresAuth: true, requiredRole: 'admin' } },
+    { path: '/admin/vouchers', component: AdminVouchers, meta: { requiresAuth: true, requiredRole: 'admin' } },
     { path: '/admin/config', component: AdminConfig, meta: { requiresAuth: true, requiredRole: 'admin' } },
 
     // === 5. CÁC TRANG GIAO HÀNG (Chỉ Shipper mới được vào) ===
